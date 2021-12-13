@@ -1,0 +1,26 @@
+#pragma kernel Reduction1
+#define THREADTOTAL 64
+groupshared float sharedMem[THREADTOTAL];
+
+StructuredBuffer<float> Source;
+RWStructuredBuffer<float> Result;
+
+[numthreads(THREADTOTAL,1,1)]
+void Reduction1(uint3 Gid:SV_GroupID, uint3 DTid : SV_DispatchThreadID,
+	uint GI : SV_GroupIndex)
+{
+	sharedMem[GI] = Source[DTid.x]; // store in shared memory   
+	GroupMemoryBarrierWithGroupSync(); // wait until everything is transfered from device memory to shared memory
+
+	for (uint s = THREADTOTAL / 2; s > 0; s >>= 1) {
+		if (GI < s)
+			sharedMem[GI] += sharedMem[GI + s];
+		GroupMemoryBarrierWithGroupSync();
+	}
+	// Have the first thread write out to the output
+	if (GI == 0) {
+		// write out the result for each thread group
+		Result[Gid.x] = sharedMem[0];
+	}
+
+}
