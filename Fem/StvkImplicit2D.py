@@ -1,6 +1,10 @@
 import numpy as np
+
+Top = True
 # 初始化三角形初始位置
 node_pos = np.array([[0,0],[1,0],[0,1]],dtype = float)
+if Top == True:
+    node_pos = np.array([[1,0],[1,1],[0,1]],dtype = float)
 # 顶点的位置梯度
 Ds = np.array([[node_pos[1,0] - node_pos[0,0],node_pos[2,0] -
 node_pos[0,0]],
@@ -9,11 +13,13 @@ node_pos[0,1]]])
 # 求逆，用于准备计算形变梯度
 minv = np.linalg.inv(Ds)
 # 假设某一时刻，三角形变化到了这样的位置
-node_pos = np.array([[1,1],[5,2],[4,3]],dtype = float)
+node_pos = np.array([[0,0],[2,0],[0,1]],dtype = float)
+if Top == True:
+    node_pos = np.array([[2,0],[1,1],[0,1]],dtype = float)
 node_vel = np.zeros((3,2))
 node_force = np.zeros((3,2))
 time = 0
-timeFinal = 100
+timeFinal = 1
 areat = np.zeros((timeFinal))
 while(time < timeFinal):
 
@@ -92,7 +98,7 @@ while(time < timeFinal):
             K[1,idx] = - dH[idx,1,0] - dH[idx,1,1]
             
     mass = 0.1
-    dt = 10
+    dt = 1
     A = mass * np.identity(6) -  K  * dt * dt
     b = np.zeros((6))
     for n in range(3):
