@@ -1,0 +1,62 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWByteAddressBuffer  node_force;
+RWStructuredBuffer<float> node_force_new;
+RWStructuredBuffer<int> node_update;
+StructuredBuffer<float> node_pos;
+int method;
+[numthreads(8,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float val = asfloat(node_force.Load(id.x * 4));
+    node_update[id.x] = 1;
+    if (id.x % 3 == 1)
+    {
+        if (node_pos[id.x] < -3)
+        {
+            if (method == 0)
+            {
+                val += 0.01f;
+            }
+            else
+            {
+                val = 0;
+                node_update[id.x] = 0;
+            }
+            
+        }
+        else
+        {
+            val -= 0.01f;
+        }
+
+    }
+    /*
+    if (id.x % 3 == 1)
+    {
+        if (node_pos[id.x] < - 8)
+        {
+            val += 0.001f;
+        }
+        else if (node_pos[id.x] > node_pos[id.x - 1] * 0.01f)
+        {
+            val -= 0.01f;
+        }
+
+    }
+    if (id.x % 3 == 0)
+    {
+        if (node_pos[id.x + 1] < -8)
+        {
+
+        }
+        else if (node_pos[id.x] * 0.01f > node_pos[id.x + 1] )
+        {
+            val -= 0.0001f;
+        }
+    }
+    */
+    node_force_new[id.x] = val;
+    node_force.Store(id.x * 4, asuint(0));
+}

@@ -1,0 +1,25 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float> node_pos;
+RWStructuredBuffer<float> node_vel;
+RWStructuredBuffer<float> xvec;
+StructuredBuffer<int> node_update;
+
+float dt;
+
+[numthreads(8,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (node_update[id.x] == 1)
+    {
+        node_vel[id.x] = xvec[id.x];
+        node_pos[id.x] = node_pos[id.x] + dt * xvec[id.x];
+    }
+    else
+    {
+        node_vel[id.x] = 0;
+        //node_pos[id.x] = node_pos[id.x] + dt * xvec[id.x] * 0.1f;
+    }
+    
+}
