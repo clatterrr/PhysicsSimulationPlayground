@@ -1,0 +1,42 @@
+#pragma kernel ParallelReduction
+#define THREADTOTAL 4
+groupshared float sharedMem[THREADTOTAL];
+
+StructuredBuffer<float> Source;
+RWByteAddressBuffer Result;
+
+void atomicAddFloat(RWByteAddressBuffer buf, int idx, float value)
+{
+	uint i_val = asuint(value);
+	uint tmp0 = 0;
+	uint tmp1;
+	uint meidx = idx * 4;
+	while (true)
+	{
+		buf.InterlockedCompareExchange(meidx, tmp0, i_val, tmp1);
+		if (tmp0 == tmp1)
+			break;
+		tmp0 = tmp1;
+		i_val = asuint(value + asfloat(tmp1));
+	}
+}
+
+[numthreads(THREADTOTAL, 1, 1)]
+void ParallelReduction(uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID, uint GI : SV_GroupIndex)
+{
+	sharedMem[GI] = Source[DTid.x]; // store in shared memory   
+	GroupMemoryBarrierWithGroupSync(); // wait until everything is transfered from device memory to shared memory
+
+	for (uint s = THREADTOTAL / 2; s > 0; s >>= 1) {
+		if (GI < s)
+			sharedMem[GI] += sharedMem[GI + s];
+		GroupMemoryBarrierWithGroupSync();
+	}
+	// Have the first thread write out to the output
+	if (GI == 0) {
+		// write out the result for each thread group
+		//Result[Gid.x] = sharedMem[0];
+		// only krow / threadtotal competition
+		atomicAddFloat(Result, 0, sharedMem[0]);
+	}
+}

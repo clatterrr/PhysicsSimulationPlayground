@@ -1,0 +1,14 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float> xvec;
+StructuredBuffer<float> yvec;
+StructuredBuffer<float> xfactor;
+StructuredBuffer<float> yfactor;
+float yfactor2;
+
+[numthreads(8,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	xvec[id.x] = xfactor[0] * xvec[id.x] + yfactor2 * yfactor[0] * yvec[id.x];
+}

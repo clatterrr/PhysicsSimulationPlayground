@@ -1,0 +1,75 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+StructuredBuffer<int> ele_idx;
+StructuredBuffer<float> ele_minv;
+StructuredBuffer<float> ele_volume;
+RWStructuredBuffer<float> ele_test;
+StructuredBuffer<float> node_pos;
+RWByteAddressBuffer  node_force;
+
+float3x3 multiple(float3x3 Amat, float3x3 Bmat)
+{
+    float3x3 Cmat;
+    Cmat._11 = Amat._11 * Bmat._11 + Amat._12 * Bmat._21 + Amat._13 * Bmat._31;
+    Cmat._12 = Amat._11 * Bmat._12 + Amat._12 * Bmat._22 + Amat._13 * Bmat._32;
+    Cmat._13 = Amat._11 * Bmat._13 + Amat._12 * Bmat._23 + Amat._13 * Bmat._33;
+
+    Cmat._21 = Amat._21 * Bmat._11 + Amat._22 * Bmat._21 + Amat._23 * Bmat._31;
+    Cmat._22 = Amat._21 * Bmat._12 + Amat._22 * Bmat._22 + Amat._23 * Bmat._32;
+    Cmat._23 = Amat._21 * Bmat._13 + Amat._22 * Bmat._23 + Amat._23 * Bmat._33;
+
+    Cmat._31 = Amat._31 * Bmat._11 + Amat._32 * Bmat._21 + Amat._33 * Bmat._31;
+    Cmat._32 = Amat._31 * Bmat._12 + Amat._32 * Bmat._22 + Amat._33 * Bmat._32;
+    Cmat._33 = Amat._31 * Bmat._13 + Amat._32 * Bmat._23 + Amat._33 * Bmat._33;
+
+    return Cmat;
+}
+
+float3x3 transpose(float3x3 Amat)
+{
+    return float3x3(Amat._11, Amat._21, Amat._31,
+        Amat._12, Amat._22, Amat._32,
+        Amat._13, Amat._23, Amat._33);
+}
+
+float3x3 identity()
+{
+    return float3x3(1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
+}
+void debug_test(float3x3 Amat, int idx)
+{
+    ele_test[idx * 9 + 0] = Amat._11;
+    ele_test[idx * 9 + 1] = Amat._12;
+    ele_test[idx * 9 + 2] = Amat._13;
+
+    ele_test[idx * 9 + 3] = Amat._21;
+    ele_test[idx * 9 + 4] = Amat._22;
+    ele_test[idx * 9 + 5] = Amat._23;
+
+    ele_test[idx * 9 + 6] = Amat._31;
+    ele_test[idx * 9 + 7] = Amat._32;
+    ele_test[idx * 9 + 8] = Amat._33;
+}
+
+void atomicAddFloat(RWByteAddressBuffer buf, int idx, float value)
+{
+    uint i_val = asuint(value);
+    uint tmp0 = 0;
+    uint tmp1;
+    uint meidx = idx * 4;
+    while (true)
+    {
+        buf.InterlockedCompareExchange(meidx, tmp0, i_val, tmp1);
+        if (tmp0 == tmp1)
+            break;
+        tmp0 = tmp1;
+        i_val = asuint(value + asfloat(tmp1));
+    }
+}
+
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+
+}

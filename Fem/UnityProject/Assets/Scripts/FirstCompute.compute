@@ -1,0 +1,293 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+StructuredBuffer<int> ele_idx;
+StructuredBuffer<float> ele_minv;
+StructuredBuffer<float> ele_volume;
+StructuredBuffer<float> node_pos;
+RWStructuredBuffer<float> ele_test;
+RWByteAddressBuffer  node_force;
+RWByteAddressBuffer  Kmat;
+
+int krow;
+
+float3x3 multiple(float3x3 Amat, float3x3 Bmat)
+{
+    float3x3 Cmat;
+    Cmat._11 = Amat._11 * Bmat._11 + Amat._12 * Bmat._21 + Amat._13 * Bmat._31;
+    Cmat._12 = Amat._11 * Bmat._12 + Amat._12 * Bmat._22 + Amat._13 * Bmat._32;
+    Cmat._13 = Amat._11 * Bmat._13 + Amat._12 * Bmat._23 + Amat._13 * Bmat._33;
+
+    Cmat._21 = Amat._21 * Bmat._11 + Amat._22 * Bmat._21 + Amat._23 * Bmat._31;
+    Cmat._22 = Amat._21 * Bmat._12 + Amat._22 * Bmat._22 + Amat._23 * Bmat._32;
+    Cmat._23 = Amat._21 * Bmat._13 + Amat._22 * Bmat._23 + Amat._23 * Bmat._33;
+
+    Cmat._31 = Amat._31 * Bmat._11 + Amat._32 * Bmat._21 + Amat._33 * Bmat._31;
+    Cmat._32 = Amat._31 * Bmat._12 + Amat._32 * Bmat._22 + Amat._33 * Bmat._32;
+    Cmat._33 = Amat._31 * Bmat._13 + Amat._32 * Bmat._23 + Amat._33 * Bmat._33;
+
+    return Cmat;
+}
+
+float3x3 transpose(float3x3 Amat)
+{
+    return float3x3(Amat._11, Amat._21, Amat._31,
+        Amat._12, Amat._22, Amat._32,
+        Amat._13, Amat._23, Amat._33);
+}
+
+float3x3 identity()
+{
+    return float3x3(1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
+}
+
+void atomicAddFloat(RWByteAddressBuffer buf, int idx, float value)
+{
+    uint i_val = asuint(value);
+    uint tmp0 = 0;
+    uint tmp1;
+    uint meidx = idx * 4;
+    while (true)
+    {
+        buf.InterlockedCompareExchange(meidx, tmp0, i_val, tmp1);
+        if (tmp0 == tmp1)
+            break;
+        tmp0 = tmp1;
+        i_val = asuint(value + asfloat(tmp1));
+    }
+}
+
+void debug_test(float3x3 Amat,int idx)
+{
+    ele_test[idx * 9 + 0] = Amat._11;
+    ele_test[idx * 9 + 1] = Amat._12;
+    ele_test[idx * 9 + 2] = Amat._13;
+
+    ele_test[idx * 9 + 3] = Amat._21;
+    ele_test[idx * 9 + 4] = Amat._22;
+    ele_test[idx * 9 + 5] = Amat._23;
+
+    ele_test[idx * 9 + 6] = Amat._31;
+    ele_test[idx * 9 + 7] = Amat._32;
+    ele_test[idx * 9 + 8] = Amat._33;
+}
+
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    
+    float tidx = ele_idx[id.x * 4 + 0] * 3;
+    float p0x = node_pos[tidx + 0];
+    float p0y = node_pos[tidx + 1];
+    float p0z = node_pos[tidx + 2];
+
+    tidx = ele_idx[id.x * 4 + 1] * 3;
+    float p1x = node_pos[tidx + 0];
+    float p1y = node_pos[tidx + 1];
+    float p1z = node_pos[tidx + 2];
+
+    tidx = ele_idx[id.x * 4 + 2] * 3;
+    float p2x = node_pos[tidx + 0];
+    float p2y = node_pos[tidx + 1];
+    float p2z = node_pos[tidx + 2];
+
+    tidx = ele_idx[id.x * 4 + 3] * 3;
+    float p3x = node_pos[tidx + 0];
+    float p3y = node_pos[tidx + 1];
+    float p3z = node_pos[tidx + 2];
+
+    float3x3 Ds = float3x3(p1x - p0x, p2x - p0x, p3x - p0x,
+        p1y - p0y, p2y - p0y, p3y - p0y,
+        p1z - p0z, p2z - p0z, p3z - p0z);
+
+    tidx = id.x * 9;
+    float3x3 Dminv = float3x3(ele_minv[tidx + 0], ele_minv[tidx + 1], ele_minv[tidx + 2],
+        ele_minv[tidx + 3], ele_minv[tidx + 4], ele_minv[tidx + 5],
+        ele_minv[tidx + 6], ele_minv[tidx + 7], ele_minv[tidx + 8]);
+
+    float3x3 F = multiple(Ds, Dminv);
+    
+   
+    float3x3 strainE = (multiple(transpose(F), F) - identity()) * 0.5f;
+   
+   
+    float trE = strainE._11 + strainE._22 + strainE._33;
+
+    float mu = 2;
+    float la = 2;
+
+    
+    
+    float3x3 piola = multiple(F, 2 * mu * strainE + la * trE * identity());
+    
+    float3x3 H = -ele_volume[id.x] * multiple(piola, transpose(Dminv));
+    debug_test(H, id.x);
+    
+   
+    float3 gradC1 = float3(H._11, H._21, H._31);
+    float3 gradC2 = float3(H._12, H._22, H._32);
+    float3 gradC3 = float3(H._13, H._23, H._33);
+    float3 gradC0 = -gradC1 - gradC2 - gradC3;
+    
+    tidx = ele_idx[id.x * 4 + 0] * 3;
+    atomicAddFloat(node_force, tidx + 0, gradC0.x);
+    atomicAddFloat(node_force, tidx + 1, gradC0.y);
+    atomicAddFloat(node_force, tidx + 2, gradC0.z);
+
+    tidx = ele_idx[id.x * 4 + 1] * 3;
+    atomicAddFloat(node_force, tidx + 0, gradC1.x);
+    atomicAddFloat(node_force, tidx + 1, gradC1.y);
+    atomicAddFloat(node_force, tidx + 2, gradC1.z);
+
+    tidx = ele_idx[id.x * 4 + 2] * 3;
+    atomicAddFloat(node_force, tidx + 0, gradC2.x);
+    atomicAddFloat(node_force, tidx + 1, gradC2.y);
+    atomicAddFloat(node_force, tidx + 2, gradC2.z);
+
+    tidx = ele_idx[id.x * 4 + 3] * 3;
+    atomicAddFloat(node_force, tidx + 0, gradC3.x);
+    atomicAddFloat(node_force, tidx + 1, gradC3.y);
+    atomicAddFloat(node_force, tidx + 2, gradC3.z);
+
+    float3x3 dD, dF, dE, dP;
+    float trdE;
+    float3x3 dH[12];
+    float volume = ele_volume[id.x];
+    
+    // 0
+    dD = float3x3(-1, -1, -1, 0, 0, 0, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[0] = -volume * multiple(dP, transpose(Dminv));
+    // 1 
+    dD = float3x3(0, 0, 0, -1, -1, -1, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[1] = -volume * multiple(dP, transpose(Dminv));
+    // 2
+    dD = float3x3(0, 0, 0, 0, 0, 0, -1, -1, -1);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[2] = -volume * multiple(dP, transpose(Dminv));
+    // 3
+    dD = float3x3(1, 0, 0, 0, 0, 0, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[3] = -volume * multiple(dP, transpose(Dminv));
+    // 4
+    dD = float3x3(0, 0, 0, 1, 0, 0, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[4] = -volume * multiple(dP, transpose(Dminv));
+    // 5
+    dD = float3x3(0, 0, 0, 0, 0, 0, 1, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[5] = -volume * multiple(dP, transpose(Dminv));
+    // 6
+    dD = float3x3(0, 1, 0, 0, 0, 0, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[6] = -volume * multiple(dP, transpose(Dminv));
+    // 7
+    dD = float3x3(0, 0, 0, 0, 1, 0, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[7] = -volume * multiple(dP, transpose(Dminv));
+    // 8
+    dD = float3x3(0, 0, 0, 0, 0, 0, 0, 1, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[8] = -volume * multiple(dP, transpose(Dminv));
+    // 9
+    dD = float3x3(0, 0, 1, 0, 0, 0, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[9] = -volume * multiple(dP, transpose(Dminv));
+    // 10
+    dD = float3x3(0, 0, 0, 0, 0, 1, 0, 0, 0);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[10] = -volume * multiple(dP, transpose(Dminv));
+    // 11 
+    dD = float3x3(0, 0, 0, 0, 0, 0, 0, 0, 1);
+    dF = multiple(dD, Dminv);
+    dE = (multiple(transpose(dF), F) + multiple(transpose(F), dF)) * 0.5f;
+    trdE = dE._11 + dE._22 + dE._33;
+    dP = multiple(dF, 2 * mu * strainE + la * trE * identity());
+    dP += multiple(F, 2 * mu * dE + la * trdE * identity());
+    dH[11] = -volume * multiple(dP, transpose(Dminv));
+
+    for (int n = 0; n < 4; n++)
+    {
+        int nidx = ele_idx[id.x * 4 + n];
+        for (int d = 0; d < 3; d++)
+        {
+            int kidx = nidx * 3 + d;
+            int didx = n * 3 + d;
+            int idx;
+
+            idx = ele_idx[id.x * 4 + 1] * 3 + 0;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._11);
+            idx = ele_idx[id.x * 4 + 1] * 3 + 1;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._21);
+            idx = ele_idx[id.x * 4 + 1] * 3 + 2;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._31);
+
+            idx = ele_idx[id.x * 4 + 2] * 3 + 0;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._12);
+            idx = ele_idx[id.x * 4 + 2] * 3 + 1;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._22);
+            idx = ele_idx[id.x * 4 + 2] * 3 + 2;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._32);
+
+            idx = ele_idx[id.x * 4 + 3] * 3 + 0;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._13);
+            idx = ele_idx[id.x * 4 + 3] * 3 + 1;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._23);
+            idx = ele_idx[id.x * 4 + 3] * 3 + 2;
+            atomicAddFloat(Kmat, idx * krow + kidx, dH[didx]._33);
+
+            idx = ele_idx[id.x * 4 + 0] * 3 + 0;
+            atomicAddFloat(Kmat, idx * krow + kidx, - dH[didx]._11 -dH[didx]._12 -dH[didx]._13);
+            idx = ele_idx[id.x * 4 + 0] * 3 + 1;
+            atomicAddFloat(Kmat, idx * krow + kidx, -dH[didx]._21 -dH[didx]._22 -dH[didx]._23);
+            idx = ele_idx[id.x * 4 + 0] * 3 + 2;
+            atomicAddFloat(Kmat, idx * krow + kidx, -dH[didx]._31 -dH[didx]._32 -dH[didx]._33);
+        }
+    }
+ 
+}

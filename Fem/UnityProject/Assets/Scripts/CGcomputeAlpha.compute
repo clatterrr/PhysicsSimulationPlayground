@@ -1,0 +1,14 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWByteAddressBuffer AdA;
+RWStructuredBuffer<float> rho1;
+RWStructuredBuffer<float> alpha;
+
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    alpha[0] = rho1[0] / asfloat(AdA.Load(0));
+    AdA.Store(0, asuint(0));
+
+}
