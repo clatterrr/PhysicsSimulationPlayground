@@ -40,9 +40,9 @@ while(time < timeFinal):
     area = 0.5
     # 计算力
     H = - area * np.dot(piola,minv.transpose())
-    gradC0 = np.array([H[0,0],H[1,0]])
-    gradC1 = np.array([H[0,1],H[1,1]])
-    gradC2 = - gradC0 - gradC1
+    gradC1 = np.array([H[0,0],H[1,0]])
+    gradC2 = np.array([H[0,1],H[1,1]])
+    gradC0 = - gradC1 - gradC2
     invMass = 1
     dt = 0.1
     # 判断是否收敛
@@ -52,10 +52,11 @@ while(time < timeFinal):
     if sumGradC < 1e-10:
         break
     # 校正位置，方法来源于PositionBasedDynamics
-    node_pos[0,:] += dt * energy / sumGradC * invMass * gradC2
-    node_pos[1,:] += dt * energy / sumGradC * invMass * gradC0
-    node_pos[2,:] += dt * energy / sumGradC * invMass * gradC1
+    node_pos[0,:] += dt * energy / sumGradC * invMass * gradC0
+    node_pos[1,:] += dt * energy / sumGradC * invMass * gradC1
+    node_pos[2,:] += dt * energy / sumGradC * invMass * gradC2
     areat[time - 1] = 0.5 * (node_pos[0,0] * (node_pos[1,1] - node_pos[2,1])
                     + node_pos[1,0] * (node_pos[2,1] - node_pos[0,1]) 
                     + node_pos[2,0] * (node_pos[0,1] - node_pos[1,1]))
+    
     

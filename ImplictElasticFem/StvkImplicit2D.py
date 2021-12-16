@@ -89,13 +89,13 @@ while(time < timeFinal):
             # 第 idx 列，每列3 x 2 个元素
             idx = n * 2 + d
             # 先填写第一第二个顶点，第零个顶点之后填
-            K[2,idx] = dH[idx,0,0]
-            K[3,idx] = dH[idx,1,0]
-            K[4,idx] = dH[idx,0,1]
-            K[5,idx] = dH[idx,1,1]
+            K[2,idx] += dH[idx,0,0]
+            K[3,idx] += dH[idx,1,0]
+            K[4,idx] += dH[idx,0,1]
+            K[5,idx] += dH[idx,1,1]
             
-            K[0,idx] = - dH[idx,0,0] - dH[idx,0,1]
-            K[1,idx] = - dH[idx,1,0] - dH[idx,1,1]
+            K[0,idx] += - dH[idx,0,0] - dH[idx,0,1]
+            K[1,idx] += - dH[idx,1,0] - dH[idx,1,1]
             
     mass = 0.1
     dt = 1
@@ -109,7 +109,6 @@ while(time < timeFinal):
     for n in range(3):
         for d in range(2):
             node_vel[n,d] = x[n*2+d]
-            # node_vel[n,d] += node_force[n,d] / mass * dt
             node_pos[n,d] += node_vel[n,d]*dt
             
     areat[time - 1] = 0.5 * (node_pos[0,0] * (node_pos[1,1] - node_pos[2,1])
