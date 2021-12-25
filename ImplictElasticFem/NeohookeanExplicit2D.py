@@ -23,19 +23,33 @@ while(time < timeFinal):
     # 形变梯度
     F = np.dot(Ds_new,minv)
     # Green Strain，也就是E
-    E = (np.dot(F.T,F)- np.identity(2)) * 0.5
+    FtF = np.dot(F.T,F)
+    
+    J = np.linalg.det(F)
+    logJ = np.log(J)
     # lame常数
     mu = 2
     # lame常数
     la = 2
     # Stvk的能量计算公式
+    IC = 0
+    IIC = 0
+    IIIC = np.linalg.det(FtF)
+    for i in range(2):
+        for j in range(2):
+            IC += F[i,j]*F[i,j]
+            IIC += FtF[i,j]*FtF[i,j]
+    IC = np.sqrt(IC)
+    IIC = np.sqrt(IIC)
+    energy = mu * 0.5 * (IC - 2) - mu * logJ + la * 0.5 * logJ * logJ
     
-    doubleInner = E[0,0]*E[0,0] + E[1,0]*E[1,0] + E[0,1]*E[0,1] + E[1,1]*E[1,1]
+    pJpF = np.zeros((3,3))
+    pJpF[:,0] = np.cross(F[:,1], F[:,2])
+    pJpF[:,1] = np.cross(F[:,2], F[:,0])
+    pJpF[:,2] = np.cross(F[:,0], F[:,1])
     
-    energy = doubleInner * mu + la / 2 * (E[0,0] + E[1,1])**2
-    # print(energy)
-    #first piola kirchhoff stress
-    piola = np.dot(F, 2 * mu * E + la * (E[0,0] + E[1,1]) * np.identity(2))
+    piola = mu * (F - 1.0 / J * pJpF) + la * logJ / J * pJpF
+    
     # 三角形面积
     area = 0.5
     # 计算力

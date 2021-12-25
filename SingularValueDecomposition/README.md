@@ -52,6 +52,10 @@ bullet3库也是如此https://github.com/romanpunia/tomahawk/blob/373f080ff8552d
 
 vegafem库还处理了当sigma太小的情况。详细请看代码。这个算法也是04年论文可逆有限元 G. Irving, J. Teran, and R. Fedkiw. Invertible Finite Elements for Robust Simulation of Large Deformation 所使用的算法。
 
+Numerical
+
+pielet
+
 # 论文2简介
 
 Computing the Singular Value Decomposition of 3 x 3 matrices with minimal branching and elementary floating point operations 方法大致是先计算特征值，然后用特征值得到奇异值。
@@ -400,5 +404,78 @@ void CodeZerochasing(inout float3x3 U, inout float3x3 A, inout float3x3 V)
 	U = mul(U, G);
 	//checked
 }
+```
+
+# ReOrder
+
+重新按降序排序
+
+E:\mycode\Hair\PieletClothSim\ClothSim\Utils\MathUtility.h
+
+# 快速
+
+IPC
+
+```
+    void fastComputeSingularValues3d(const Eigen::Matrix3d& A,
+        Eigen::Vector3d& singular_values)
+    {
+        using T = double;
+        // decompose normal equations
+        Eigen::Vector3d lambda;
+        fastEigenvalues(A.transpose() * A, lambda);
+
+        // compute singular values
+        if (lambda(2) < 0)
+            lambda = (lambda.array() >= (T)0).select(lambda, (T)0);
+        singular_values = lambda.array().sqrt();
+        if (A.determinant() < 0)
+            singular_values(2) = -singular_values(2);
+    }
+```
+
+```
+    void fastSVD3d(const Eigen::Matrix3d& A,
+        Eigen::Matrix3d& U,
+        Eigen::Vector3d& singular_values,
+        Eigen::Matrix3d& V)
+    // 182 mults, 112 adds, 6 divs, 11 sqrts, 1 atan2, 1 sincos
+    {
+        using T = double;
+        // decompose normal equations
+        Eigen::Vector3d lambda;
+        fastSolveEigenproblem(A.transpose() * A, lambda, V);
+
+        // compute singular values
+        if (lambda(2) < 0)
+            lambda = (lambda.array() >= (T)0).select(lambda, (T)0);
+        singular_values = lambda.array().sqrt();
+        if (A.determinant() < 0)
+            singular_values(2) = -singular_values(2);
+
+        // compute singular vectors
+        U.col(0) = A * V.col(0);
+        T norm = U.col(0).norm();
+        if (norm != 0) {
+            T one_over_norm = (T)1 / norm;
+            U.col(0) = U.col(0) * one_over_norm;
+        }
+        else
+            U.col(0) << 1, 0, 0;
+        Eigen::Vector3d v1_orthogonal = U.col(0).unitOrthogonal();
+        Eigen::Matrix<T, 3, 2> other_v;
+        other_v.col(0) = v1_orthogonal;
+        other_v.col(1) = U.col(0).cross(v1_orthogonal);
+        Eigen::Vector2d w = other_v.transpose() * A * V.col(1);
+        norm = w.norm();
+        if (norm != 0) {
+            T one_over_norm = (T)1 / norm;
+            w = w * one_over_norm;
+        }
+        else
+            w << 1, 0;
+        U.col(1) = other_v * w;
+        U.col(2) = U.col(0).cross(U.col(1));
+    }
 ```
 

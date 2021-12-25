@@ -4,13 +4,14 @@
 import numpy as np
 
 file_name = "tetrisCube.1"
+tetNum = 2
 
 file_f = open("E:\\vspro\\ImplicitCreeper\\Assets\\TetrisModel\\" + file_name + ".node","r")
 lines = file_f.readlines()
 node_num = int(lines[0].split()[0])
-node_pos = np.zeros((node_num,3))
-node_vel = np.zeros((node_num,3))
-node_force = np.zeros((node_num,3))
+node_pos = np.zeros((node_num * tetNum,3))
+node_vel = np.zeros((node_num * tetNum,3))
+node_force = np.zeros((node_num * tetNum,3))
 cnt = -1
 for line in lines:
     if cnt == -1:
@@ -20,6 +21,10 @@ for line in lines:
     node_pos[cnt,0] = float(x[1])
     node_pos[cnt,1] = float(x[2])
     node_pos[cnt,2] = float(x[3])
+    for te in range(1,tetNum):
+        node_pos[te * node_num, 0] = node_pos[cnt,0]
+        node_pos[te * node_num, 1] = node_pos[cnt,1]
+        node_pos[te * node_num, 2] = node_pos[cnt,2]
     cnt += 1
     if cnt == node_num:
         break
@@ -27,9 +32,9 @@ for line in lines:
 file_f = open("E:\\vspro\\ImplicitCreeper\\Assets\\TetrisModel\\" + file_name + ".ele","r")
 lines = file_f.readlines()
 elem_num = int(lines[0].split()[0])
-elem_idx = np.zeros((elem_num,4),dtype=int)
-elem_minv = np.zeros((elem_num,3,3))
-elem_volume = np.zeros((elem_num))
+elem_idx = np.zeros((elem_num * tetNum,4),dtype=int)
+elem_minv = np.zeros((elem_num * tetNum ,3,3))
+elem_volume = np.zeros((elem_num * tetNum))
 cnt = -1
 for line in lines:
     if cnt == -1:
@@ -40,6 +45,11 @@ for line in lines:
     elem_idx[cnt,1] = int(x[2])
     elem_idx[cnt,2] = int(x[3])
     elem_idx[cnt,3] = int(x[4])
+    for te in range(1,tetNum):
+        elem_idx[te * node_num, 0] = elem_idx[cnt,0]
+        elem_idx[te * node_num, 1] = elem_idx[cnt,1]
+        elem_idx[te * node_num, 2] = elem_idx[cnt,2]
+        elem_idx[te * node_num, 3] = elem_idx[cnt,3]
     cnt += 1
     if cnt == elem_num:
         break
@@ -57,8 +67,10 @@ for i in range(elem_num):
     dX[:,2] = p3 - p0
     elem_volume[i] = np.linalg.det(dX) * 0.16666667
     elem_minv[i] = np.linalg.inv(dX)
+   
+        
+    
 
-node_pos[0,0] += 1
 
 mass = 1
 dt = 1
