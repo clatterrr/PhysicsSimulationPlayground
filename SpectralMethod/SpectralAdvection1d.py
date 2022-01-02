@@ -9,9 +9,8 @@ def derivation(q):
     
     a = 1 # 系数
     # res = a*qx # 对流方程
-    # res = - a*qxx # 扩散方程
-    res = q*qx # 无粘性burgers 方程
-    res = q*qx + qxxx
+    res = - a*qxx # 扩散方程
+    # res = q*qx # 无粘性burgers 方程
     # res = q*qx - a*qxx # 粘性burgers 方程
     return res
 

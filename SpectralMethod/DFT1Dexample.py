@@ -13,4 +13,4 @@ for x0 in range(0,nmax):
 # IDFT    
 for x0 in range(0,nmax):
     for x1 in range(0,nmax):
-        idftres[x0] += dftres[x1]*np.exp(-2j*np.pi*(x0 * x1 / nmax))/nmax
+        idftres[x0] += dftres[x1]*np.exp(2j*np.pi*(x0 * x1 / nmax))/nmax

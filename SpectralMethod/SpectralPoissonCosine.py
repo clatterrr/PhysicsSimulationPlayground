@@ -7,7 +7,7 @@ import matplotlib.pyplot as pl
 zero_bc = False
 
 # Plot gradient
-plot_grad_u = True
+plot_grad_u = False
 
 # RHS function
 def rhs_leveque(x):
