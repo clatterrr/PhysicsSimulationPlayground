@@ -9,9 +9,15 @@ node_pos[0,1]]])
 # 求逆，用于准备计算形变梯度
 minv = np.linalg.inv(Ds)
 # 假设某一时刻，三角形变化到了这样的位置
-node_pos = np.array([[0,0],[-0.9,0],[0,-0.9]],dtype = float)
+node_pos = np.array([[0,0],[2,1],[0,2]],dtype = float)
+
+young = 100
+nu = 0.4
+mu = young / ( 2 * (1 + nu))
+la = young * nu / (1 + nu) / (1 - 2 * nu)
+
 time = 0
-timeFinal = 100
+timeFinal = 1
 areat = np.zeros((timeFinal))
 while(time < timeFinal):
     time += 1
@@ -22,34 +28,21 @@ while(time < timeFinal):
     node_pos[0,1]]])
     # 形变梯度
     F = np.dot(Ds_new,minv)
-    # Green Strain，也就是E
+    Finv = np.linalg.inv(F)
+    FinvT = Finv.T
     FtF = np.dot(F.T,F)
     
     J = np.linalg.det(F)
+    mu = la = 2
     logJ = np.log(J)
-    # lame常数
-    mu = 2
-    # lame常数
-    la = 2
-    # Stvk的能量计算公式
-    IC = 0
-    IIC = 0
-    IIIC = np.linalg.det(FtF)
-    for i in range(2):
-        for j in range(2):
-            IC += F[i,j]*F[i,j]
-            IIC += FtF[i,j]*FtF[i,j]
-    IC = np.sqrt(IC)
-    IIC = np.sqrt(IIC)
-    energy = mu * 0.5 * (IC - 2) - mu * logJ + la * 0.5 * logJ * logJ
-    
-    pJpF = np.zeros((3,3))
-    pJpF[:,0] = np.cross(F[:,1], F[:,2])
-    pJpF[:,1] = np.cross(F[:,2], F[:,0])
-    pJpF[:,2] = np.cross(F[:,0], F[:,1])
-    
-    piola = mu * (F - 1.0 / J * pJpF) + la * logJ / J * pJpF
-    
+    # 第一不变量
+    Ic = FtF[0,0] + FtF[1,1] 
+    # 可压缩 neohookean 能量
+    energy = mu * 0.5 * (Ic - 2) - mu * logJ + la * 0.5 * logJ * logJ
+    # 第一 piola kirchhoff 应力
+    piola = mu * F - mu * FinvT + la * logJ * 0.5 * FinvT
+    t1 = mu * F - mu * FinvT
+    t2 = la * logJ * 0.5 * FinvT
     # 三角形面积
     area = 0.5
     # 计算力

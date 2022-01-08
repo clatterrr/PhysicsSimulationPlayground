@@ -240,7 +240,7 @@ MonoBehaviour:
   texuture0: {fileID: 2800000, guid: 970e2fd13a7d6484e8b67fc775e8c848, type: 3}
   texuture1: {fileID: 2800000, guid: 970e2fd13a7d6484e8b67fc775e8c848, type: 3}
   texuture2: {fileID: 2800000, guid: 970e2fd13a7d6484e8b67fc775e8c848, type: 3}
-  stepCompute: {fileID: 7200000, guid: cbee44f12098f0d46808a44bc3fa8f7d, type: 3}
+  stepCompute: {fileID: 7200000, guid: 55a51a5d15747c44db691ae1675a4aa4, type: 3}
   assemblyCompute: {fileID: 7200000, guid: 8b49ed3bfebbe2a4e93b370df55804d5, type: 3}
   addForceCompute: {fileID: 7200000, guid: 6a4158d6aedd40f4498fefb63d285813, type: 3}
   correctCompute: {fileID: 7200000, guid: 5acc54b31fad7694a876155387b1debd, type: 3}
@@ -255,7 +255,7 @@ MonoBehaviour:
   dt: 0.5
   mu: 2
   la: 2
-  SelectAScene: 12
+  SelectAScene: 7
 --- !u!4 &1412123621
 Transform:
   m_ObjectHideFlags: 0

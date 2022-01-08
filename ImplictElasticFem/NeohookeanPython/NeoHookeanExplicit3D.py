@@ -12,7 +12,12 @@ mass = 1
 dt = 0.1
 invMass = 1 / mass
 
-node_pos = np.array([[0,0,0],[1,0,0],[0,5,0],[0,0,2]],dtype = float)
+young = 100
+nu = 0.4
+mu = young / ( 2 * (1 + nu))
+la = young * nu / (1 + nu) / (1 - 2 * nu)
+
+node_pos = np.array([[0,0,0],[0.1,0,0],[0,0.1,0],[0,0,0.1]],dtype = float)
 time = 0
 timeFinal = 100
 volumet = np.zeros((timeFinal))
@@ -29,28 +34,14 @@ while(time < timeFinal):
     FtF = np.dot(F.T,F)
     
     J = np.linalg.det(F)
+    
     logJ = np.log(J)
-    # lame常数
-    mu = 2
-    # lame常数
-    la = 2
-    # Stvk的能量计算公式
-    Ic = 0
-    IIc = 0
-    IIIc = np.linalg.det(FtF)
-    for i in range(3):
-        for j in range(3):
-            Ic += F[i,j]*F[i,j]
-            IIc += FtF[i,j]*FtF[i,j]
+    # 第一不变量
+    Ic = FtF[0,0] + FtF[1,1] + FtF[2,2]
+    # 可压缩 neohookean 能量
     energy = mu * 0.5 * (Ic - 3) - mu * logJ + la * 0.5 * logJ * logJ
-    pJpF = np.zeros((3,3))
-    pJpF[:,0] = np.cross(F[:,1], F[:,2])
-    pJpF[:,1] = np.cross(F[:,2], F[:,0])
-    pJpF[:,2] = np.cross(F[:,0], F[:,1])
-    # 第一种写法
-    piola = mu * (F - 1.0 / J * pJpF) + la * logJ / J * pJpF
-    # 第二种写法
-    # piola = mu * F - mu * FinvT + la * np.log(IIIc) * 0.5 * FinvT
+    # 第一 piola kirchhoff 应力
+    piola = mu * F - mu * FinvT + la * logJ * 0.5 * FinvT
     # 面积
     H = - volume * np.dot(piola, Dminv.T)
     gradC = np.zeros((4,3))

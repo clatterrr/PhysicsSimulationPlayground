@@ -12,7 +12,12 @@ mass = 1
 dt = 0.1
 invMass = 1 / mass
 
-node_pos = np.array([[0,0,0],[0.5,0,0],[0,1,0],[0,0,1]],dtype = float)
+young = 100
+nu = 0.4
+mu = young / ( 2 * (1 + nu))
+la = young * nu / (1 + nu) / (1 - 2 * nu)
+
+node_pos = np.array([[0,0,0],[0.1,0,0],[0,0.1,0],[0,0,0.1]],dtype = float)
 time = 0
 timeFinal = 100
 volumet = np.zeros((timeFinal))
@@ -25,23 +30,16 @@ while(time < timeFinal):
     volumet[time] = np.linalg.det(Ds) * 0.1666667
     # deformation gradient 变形梯度
     F = np.dot(Ds,Dminv)
-    # green strain 
-    E = (np.dot(F.T,F)- np.identity(3)) * 0.5
-    # lame 常数
-    mu = 2
-    # lame 常数
-    la = 2
-    # 双点积
-    doubleInner = 0
-    for i in range(3):
-        for j in range(3):
-            doubleInner += E[i,j]*E[i,j]
-    # trace 迹
-    trE = E[0,0] + E[1,1] + E[2,2]
-    # 能量
-    energy = doubleInner * mu + la * 0.5 * trE * trE
-    # first piola kirchhoff stress
-    piola = np.dot(F,2*mu*E + la * trE * np.identity(3))
+    C = np.dot(F.T,F)
+    Cinv = np.linalg.inv(C)
+    J = np.linalg.det(F)
+    logJ = np.log(J)
+    # 第一不变量
+    Ic = C[0,0] + C[1,1] + C[1,1]
+    # 可压缩 neohookean 能量
+    energy = mu * 0.5 * (Ic - 3) - mu * logJ + la * 0.5 * logJ * logJ
+    # 第二 piola kirchhoff 应力
+    piola = mu * (np.identity(3) - Cinv) + la * logJ * Cinv
     # 面积
     H = - volume * np.dot(piola, Dminv.T)
     gradC = np.zeros((4,3))
