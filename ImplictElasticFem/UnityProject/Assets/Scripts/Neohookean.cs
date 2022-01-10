@@ -20,7 +20,9 @@ public class Neohookean : MonoBehaviour
 
     [NativeDisableParallelForRestriction]
     NativeArray<Vector3> node_force;
-    int[] node_upate;
+
+    [NativeDisableParallelForRestriction]
+    NativeArray<int> node_upate;
 
     Vector3[] newpos;
 
@@ -49,10 +51,10 @@ public class Neohookean : MonoBehaviour
 
 
     public string fileName = "creeperHigh.1";
-    public float invmass = 10;
-    public float dt = 0.5f;
-    public float mu = 5f;
-    public float la = 5f;
+    public float invmass = 1f;
+    public float dt = 0.1f;
+    public float mu = 50f;
+    public float la = 50f;
 
     // https://www.raywenderlich.com/7880445-unity-job-system-and-burst-compiler-getting-started
     
@@ -63,13 +65,13 @@ public class Neohookean : MonoBehaviour
     JobHandle nodeModificationJobHandle;
     void Start()
     {
-        fileName = "cubeHigh";
-        invmass = 1;
-        dt = 0.1f;
-        mu = 2f;
-        la = 2f;
-        ReadFile();
+        fileName = "cubeMed";
+        invmass = 0.01f;
+        dt = 0.01f;
+        mu = 300f;
+        la = 200f;
         mesh = new Mesh();
+        ReadFile();
         mesh.vertices = newpos;
         mesh.triangles = face_idx;
         mesh.RecalculateBounds();
@@ -84,7 +86,7 @@ public class Neohookean : MonoBehaviour
         node_num = int.Parse(textTxt[0].Split(' ')[0]);
         node_pos = new NativeArray<Vector3>(node_num, Allocator.Persistent); 
         node_force = new NativeArray<Vector3>(node_num, Allocator.Persistent); 
-        node_upate = new int[node_num * 3];
+        node_upate = new NativeArray<int>(node_num, Allocator.Persistent);
         newpos = new Vector3[node_num];
         Debug.Log(" node_num " + node_num);
         for (int i = 0;i < textTxt.Length;i++)
@@ -93,7 +95,6 @@ public class Neohookean : MonoBehaviour
             if (splitTxt[0] == "#") break;
             node_pos[i] = new Vector3(float.Parse(splitTxt[1]), float.Parse(splitTxt[2]), float.Parse(splitTxt[3]));
             node_force[i] = Vector3.zero;
-            node_upate[i * 3 + 0] = node_upate[i * 3 + 1] = node_upate[i * 3 + 2] = 1;
         }
 
         textTxt = File.ReadAllLines(Application.dataPath + "/TetModel/" + fileName + ".1.ele");
@@ -125,7 +126,7 @@ public class Neohookean : MonoBehaviour
             elem_minv[i] = new Matrix3x3((m22 * m33 - m23 * m32) * dinv, (m13 * m32 - m12 * m33) * dinv, (m12 * m23 - m13 * m22) * dinv,
                                                           (m23 * m31 - m21 * m33) * dinv, (m11 * m33 - m13 * m31) * dinv, (m13 * m21 - m11 * m23) * dinv,
                                                           (m21 * m32 - m22 * m31) * dinv, (m12 * m31 - m11 * m32) * dinv, (m11 * m22 - m12 * m21) * dinv);
-            Matrix3x3.debug(elem_minv[i], "Dminv", i);
+            //Matrix3x3.debug(elem_minv[i], "Dminv", i);
             elem_test[i] = new Matrix3x3();
 
         }
@@ -153,12 +154,20 @@ public class Neohookean : MonoBehaviour
             face_uv[i * 6 + 3] = 0;
             face_uv[i * 6 + 4] = 0;
             face_uv[i * 6 + 5] = 1;
-            //Debug.Log(face_idx[i * 3 + 0] + " " + face_idx[i * 3 + 1] + " " + face_idx[i * 3 + 2]);
         }
 
         for(int i = 0;i < node_num;i++)
         {
-            node_pos[i] = node_pos[i] * 1.5f;
+           if(node_pos[i].y > 0.8f)
+            {
+                node_upate[i] = 1;
+            }else if (node_pos[i].y < -0.8f)
+            {
+                node_upate[i] = 0;
+            }else
+            {
+                node_upate[i] = 2;
+            }
         }
     }
 
@@ -253,28 +262,30 @@ public class Neohookean : MonoBehaviour
     {
         public NativeArray<Vector3> node_pos;
         public NativeArray<Vector3> node_force;
+        public NativeArray<int> node_update;
 
         public float dt;
         public void Execute(int ip)
         {
-            if (node_pos[ip].y < -3)
+            if(node_update[ip] == 0)
             {
-                node_force[ip] = Vector3.zero;
-
+                
+            }else if (node_update[ip] == 1)
+            {
+                node_pos[ip] += new Vector3(0, 0.01f, 0.0f);
             }
             else
             {
-                node_force[ip] += new Vector3(0, -0.05f, 0);
+                node_pos[ip] += dt * node_force[ip];
             }
-            node_pos[ip] += dt * node_force[ip];
             node_force[ip] = Vector3.zero;
-
         }
     }
     private void OnDestroy()
     {
         node_pos.Dispose();
         node_force.Dispose();
+        node_upate.Dispose();
         elem_idx.Dispose();
         elem_volume.Dispose();
         elem_minv.Dispose();
@@ -301,7 +312,7 @@ public class Neohookean : MonoBehaviour
             test = new Matrix3x3(elem_test[i].v00, elem_test[i].v01, elem_test[i].v02,
                                             elem_test[i].v10, elem_test[i].v11, elem_test[i].v12,
                                             elem_test[i].v20, elem_test[i].v21, elem_test[i].v22);
-            Matrix3x3.debug(test, "F", i);
+            //Matrix3x3.debug(test, "F", i);
         }
         for (int i = 0; i < node_num; i++)
         {
@@ -312,9 +323,10 @@ public class Neohookean : MonoBehaviour
         {
             node_force = node_force,
             node_pos = node_pos,
+            node_update = node_upate,
             dt = 0.1f
         };
-        nodeModificationJobHandle = nodeModificationJob.Schedule(node_num, 128);
+        nodeModificationJobHandle = nodeModificationJob.Schedule(node_num, 98);
 
         nodeModificationJobHandle.Complete();
 

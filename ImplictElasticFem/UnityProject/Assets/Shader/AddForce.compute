@@ -13,22 +13,34 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     node_update[id.x] = 1;
     if (id.x % 3 == 1)
     {
-        if (node_pos[id.x] < -3)
+        if (node_pos[id.x] <= -1 && node_pos[id.x - 1] <= -2.0f)
+        {
+            val = 0;
+            node_update[id.x] = 0;
+        }
+        else  if (node_pos[id.x] <= -5)
+        {
+            val = 0;
+            node_update[id.x] = 0;
+        }
+
+        /*
+       
         {
             if (method == 0)
             {
-                val += 0.01f;
+                val += 0.02f;
             }
             else
             {
-                val = 0;
-                node_update[id.x] = 0;
+               
             }
-            
-        }
+             }
+            */
+       
         else
         {
-            val -= 0.01f;
+            val -= 0.05f;
         }
 
     }

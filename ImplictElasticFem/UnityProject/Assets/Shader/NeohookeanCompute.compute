@@ -135,7 +135,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float3x3 Finv = computeInv(F);
     float3x3 FinvT = transpose(Finv);
     float3x3 FtF = multiple(transpose(F), F);
-    float J = computeDet(F);
+    float J = max(computeDet(F),0.001f);
     float logJ = log(J);
     float Ic = FtF._11 + FtF._22 + FtF._33;
 

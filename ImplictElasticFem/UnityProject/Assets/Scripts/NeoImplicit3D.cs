@@ -6,7 +6,7 @@ using System;
 using System.Runtime.InteropServices;
 using UnityEngine.Rendering;
 
-public class Implicit3D : MonoBehaviour
+public class NeoImplicit3D : MonoBehaviour
 {
     // Start is called before the first frame update
     int correctThread = 0;
@@ -92,11 +92,11 @@ public class Implicit3D : MonoBehaviour
     int MAT_WARP_SIZE = 8;
     int ELE_WARP_SIZE = 8;
 
-    public string fileName = "creeperHigh.1";
-    public float invmass = 10;
-    public float dt = 0.5f;
-    public float mu = 5f;
-    public float la = 5f;
+    string fileName = "creeperHigh.1";
+    float invmass = 10;
+    float dt = 0.5f;
+    float mu = 5f;
+    float la = 5f;
 
     // 碰到障碍的对策，0 为施加反作用力，类似于水中上浮下潜，1 为直接将力设置为零，并且不再更新位置，类似于撞到坚硬墙壁。
     int method = 0; 
@@ -104,18 +104,15 @@ public class Implicit3D : MonoBehaviour
     public enum NeoScheme
     {
         Custom,
-        RigidCubeLowResolution,
-        SoftCubeLowResolution,
         RigidCubeMedResolution,
         SoftCubeMedResolution,
         RigidCubeHighResolution,
         SoftCubeHighResolution,
         RigidChip,
         SoftChip,
-        Sphere,
+        Bear,
         CreeperLowResolution,
         CreeperMedResolution,
-        CreeperHighResoultion,
         
     };
     public NeoScheme SelectAScene;
@@ -125,28 +122,6 @@ public class Implicit3D : MonoBehaviour
         switch(SelectAScene)
         {
             case NeoScheme.Custom:break;
-            case NeoScheme.RigidCubeLowResolution:
-                {
-                    fileName = "cubeLow";
-                    invmass = 1;
-                    dt = 0.1f;
-                    mu = 20f;
-                    la = 20f;
-                    method = 1;
-                    displayMaterial.SetTexture("Texture", texuture0);
-                    break;
-                }
-            case NeoScheme.SoftCubeLowResolution:
-                {
-                    fileName = "cubeLow";
-                    invmass = 1;
-                    dt = 0.1f;
-                    mu = 0.2f;
-                    la = 0.2f;
-                    method = 1;
-                    displayMaterial.SetTexture("Texture", texuture0);
-                    break;
-                }
             case NeoScheme.RigidCubeMedResolution:
                 {
                     fileName = "cubeMed";
@@ -163,8 +138,8 @@ public class Implicit3D : MonoBehaviour
                     fileName = "cubeMed";
                     invmass = 5;
                     dt = 0.1f;
-                    mu = 1f;
-                    la = 1f;
+                    mu = 0.01f;
+                    la = 0.02f;
                     method = 1;
                     displayMaterial.SetTexture("Texture", texuture0);
                     break;
@@ -184,31 +159,31 @@ public class Implicit3D : MonoBehaviour
                 {
                     fileName = "cubeHigh";
                     invmass = 10;
-                    dt = 0.02f;
-                    mu = 10f;
-                    la = 10f;
+                    dt = 0.1f;
+                    mu = 5f;
+                    la = 5f;
                     method = 1;
                     displayMaterial.SetTexture("Texture", texuture2);
                     break;
                 }
             case NeoScheme.RigidChip:
                 {
-                    fileName = "long";
-                    invmass = 0.4f;
+                    fileName = "rod";
+                    invmass = 1;
                     dt = 0.1f;
-                    mu = 15f;
-                    la = 10f;
+                    mu = 20f;
+                    la = 20f;
                     method = 1;
                     displayMaterial.SetTexture("Texture", texuture0);
                     break;
                 }
             case NeoScheme.SoftChip:
                 {
-                    fileName = "long";
-                    invmass = 1f;
+                    fileName = "rod";
+                    invmass = 1;
                     dt = 0.1f;
-                    mu = 5f;
-                    la = 2f;
+                    mu = 0.2f;
+                    la = 0.2f;
                     method = 1;
                     displayMaterial.SetTexture("Texture", texuture0);
                     break;
@@ -235,25 +210,14 @@ public class Implicit3D : MonoBehaviour
                     method = 1;
                     break;
                 }
-            case NeoScheme.CreeperHighResoultion:
+            case NeoScheme.Bear:
                 {
-                    fileName = "creeperHigh";
-                    invmass = 0.4f;
-                    dt = 0.2f;
-                    mu = 160f;
-                    la = 80f;
-                    method = 1;
-                    displayMaterial.SetTexture("Texture", texuture1);
-                    break;
-                }
-            case NeoScheme.Sphere:
-                {
-                    fileName = "sphereMed";
-                    invmass = 0.1f;
+                    fileName = "bear";
+                    invmass = 1;
                     dt = 0.1f;
-                    mu = 1f;
+                    mu = 0.2f;
                     la = 0.2f;
-                    method = 1;
+                    method = 0;
                     displayMaterial.SetTexture("Texture", texuture2);
                     break;
                 }
@@ -281,12 +245,9 @@ public class Implicit3D : MonoBehaviour
             string[] splitTxt = textTxt[i+1].Split(' ', options: StringSplitOptions.RemoveEmptyEntries);
             if (splitTxt[0] == "#") break;
             //for (int j = 0; j < splitTxt.Length; j++) Debug.Log(splitTxt[j]);
-            node_pos[i * 3 + 0] = float.Parse(splitTxt[1]) + 2f;
+            node_pos[i * 3 + 0] = float.Parse(splitTxt[1]);
             node_pos[i * 3 + 1] = float.Parse(splitTxt[2]);
             node_pos[i * 3 + 2] = float.Parse(splitTxt[3]);
-            node_pos[i * 3 + 0] *= 3f;
-            node_pos[i * 3 + 1] *= 3f;
-            node_pos[i * 3 + 2] *= 3f;
             node_vel[i * 3 + 0] = node_vel[i * 3 + 1] = node_vel[i * 3 + 2] = 0;
             node_force[i * 3 + 0] = node_force[i * 3 + 1] = node_force[i * 3 + 2] = 0;
             node_force_new[i * 3 + 0] = node_force_new[i * 3 + 1] = node_force_new[i * 3 + 2] = 0;
@@ -360,7 +321,7 @@ public class Implicit3D : MonoBehaviour
             face_uv[i * 6 + 5] = 1;
             //Debug.Log(face_idx[i * 3 + 0] + " " + face_idx[i * 3 + 1] + " " + face_idx[i * 3 + 2]);
         }
-        
+
         //node_pos[0] += 5;
     }
     void PrePare()
@@ -523,8 +484,6 @@ public class Implicit3D : MonoBehaviour
         assemblyCompute.SetBuffer(kernel,"Kmat", Kmat_buf);
         assemblyCompute.SetBuffer(kernel, "node_force", node_force_new_buf);
         assemblyCompute.SetBuffer(kernel, "node_vel", node_vel_buf);
-        assemblyCompute.SetBuffer(kernel, "node_pos", node_pos_buf);
-        assemblyCompute.SetBuffer(kernel, "node_update", node_update_buf);
         assemblyCompute.SetBuffer(kernel, "Amat", Amat_buf);
         assemblyCompute.SetBuffer(kernel, "xvec", xvec_buf);
         assemblyCompute.SetBuffer(kernel, "resvec", resvec_buf);
@@ -721,7 +680,6 @@ public class Implicit3D : MonoBehaviour
         correctCompute.SetFloat("dt", dt);
         correctCompute.SetBuffer(kernel, "xvec", xvec_buf);
         correctCompute.SetBuffer(kernel, "node_pos", node_pos_buf);
-        correctCompute.SetBuffer(kernel, "node_force", node_force_buf);
         correctCompute.SetBuffer(kernel, "node_vel", node_vel_buf);
         correctCompute.SetBuffer(kernel, "node_update", node_update_buf);
         correctCompute.Dispatch(kernel, krow / MAT_WARP_SIZE + 1, 1, 1);

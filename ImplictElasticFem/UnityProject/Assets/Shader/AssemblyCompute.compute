@@ -2,6 +2,8 @@
 #pragma kernel CSMain
 
 RWByteAddressBuffer  Kmat; // node_num * 3 ** 2
+StructuredBuffer<float>  node_update; // node_num * 3
+StructuredBuffer<float>  node_pos;
 StructuredBuffer<float>  node_force; // node_num * 3
 StructuredBuffer<float> node_vel; // node_num * 3
 RWStructuredBuffer<float> Amat; // node_num * 3 ** 3
@@ -20,16 +22,17 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         idx = id.x * krow + i;
         if (i == id.x)
         {
-            Amat[idx] = 1 - asfloat(Kmat.Load(idx * 4))* dt * dt * invmass;
+                Amat[idx] = 1 - asfloat(Kmat.Load(idx * 4)) * dt * dt * invmass;
         }
         else
         {
-            Amat[idx] = -asfloat(Kmat.Load(idx * 4))* dt * dt * invmass;
+                Amat[idx] = -asfloat(Kmat.Load(idx * 4)) * dt * dt * invmass;
+
         }
         // to do : group shared memory
         Ax += Amat[idx] * node_vel[i];
         Kmat.Store(idx * 4,asuint(0));
     }
-    resvec[id.x] = node_vel[id.x] + dt * invmass * node_force[id.x] - Ax;
+        resvec[id.x] = node_vel[id.x] + dt * invmass * node_force[id.x] - Ax;
     
 }
