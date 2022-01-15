@@ -13,6 +13,9 @@ def QRdecomposition(A):
 def householder(a):
     v = a / (a[0] + np.copysign(np.linalg.norm(a), a[0]))
     v[0] = 1
+    
+    v2 = a
+    v2[0] += np.linalg.norm(a)
     H = np.eye(a.shape[0])
     inner = np.dot(v, v)
     outter = np.dot(v[:, None], v[None, :])
@@ -42,9 +45,7 @@ def computeEigenVector(A):
     
 
 def svd3x3(A):
-    
-    if abs(A[0,0] * A[1,1] * A[2,2] - np.linalg.det(A)):
-        return np.identity(3),A,np.identity(3)
+
     
     AtA = np.dot(A.T,A)
     eigenValue = computeEigenValue(AtA)
@@ -67,7 +68,7 @@ def svd3x3(A):
 
 # 初始矩阵
 Amat = np.array([[0,1,1],[1.414,2,0],[0,1,1]])
-Amat = np.array([[1,0,0],[0,1,0],[0,0,2]])
+Amat = np.array([[1,0,0],[0,1,0],[0,0,1]])
 import datetime
 # 奇异值分解
 time0 = datetime.datetime.now()

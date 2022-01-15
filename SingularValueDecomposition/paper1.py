@@ -224,7 +224,7 @@ def svd(A):
     s31 = symmMat[2,0]
     s32 = symmMat[2,1]
     s33 = symmMat[2,2]
-    # 计算特征值，并且返回四元数形式的特征值向量
+    # 返回四元数形式的特征值向量
     qV = jacobiEigenAnlysis(s11, s21, s22, s31, s32, s33)
     # 计算右奇异矩阵
     V = quatToMat(qV)
@@ -235,12 +235,9 @@ def svd(A):
     # QR分解以计算左奇异矩阵和中间的对角矩阵
     U,S = QRdecomp(B)
     return U,S,V
-    
-    
-    
-
+   
 A = np.array([[5,3,4],[5,7,3],[2,6,9]])
-u1,s1,v1 = np.linalg.svd(A)
-u2,s2,v2 = svd(A)
+u0,s0,v0 = np.linalg.svd(A)
+u1,s1,v1 = svd(A)
     
         

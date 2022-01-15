@@ -1,26 +1,435 @@
-奇异值分解，在python的numpy库，c++的eigen库，CUDA库也有实现。但是如果需要自己写一个怎么办呢？
+奇异值分解(singular value decompostion) 是一种非常常见的矩阵分解算法，主要用于将矩阵分解为伸缩矩阵和旋转矩阵。在物理或几何领域，最常用的就是对变形梯度的奇异值分解了。其它领域比如图像处理，深度学习，以及数据拟合也常用奇异值分解。不过本篇文章只讨论二维和三维的奇异值分解。
 
-最常见的就是分解变形梯度，把旋转部分分离掉，以计算出真正的变形量，对变形梯度的奇异值分解可见于物质点法，有限元以及连续介质力学。图像处理和深度学习也常用奇异值分解
 
-本篇并仅打算讨论3x3矩阵的奇异值分解。
 
-奇异值分解是指将矩阵A分解为三个矩阵
+假如你有一个弱小可怜又无助的单位向量V，
 $$
-\bold A = \bold U \Sigma \bold V^T
+\bold V = \begin{bmatrix} \sqrt{2} /2 \\ \sqrt{2}/2\end{bmatrix}
 $$
-其中U 和V是左奇异向量矩阵和右奇异向量矩阵，Sigma为对角矩阵。并行也不用考虑共享内存什么的，无脑写就行了。
+这个向量V的长度当然是1。而现在它被迫被矩阵A 乘了，旋转了一些，也伸缩了一些，现在它可能不是单位向量了。
 
-# 开源库主流算法介绍
+但是我们对这个向量旋转的部分不感兴趣。因为这个向量可能是一段弹簧，三角形的一个边，或两个粒子之间的距离。而旋转是刚体运动。这个向量无论怎么旋转，都不会产生能量，也不会产生力。只有当这个向量伸缩的时候，才会产生能量和力，所以我们想知道这个向量究竟伸缩了多少。
 
-我还是习惯先把能找到的开源代码甩上来。常用的有四种。
+我们可以使用极分解(polar decomposition)，也就是
+$$
+\bold A = \bold R \bold S
+$$
+但是它有缺点。
 
-## Eigen
 
-著名的Eigen库的奇异值分解就实现了jacobian旋转方法，如果你觉得Eigen库太难读，可以看看我使用python实现了jacobian旋转，很方便调试。很多开源代码在需要奇异值分解的时候也会使用eigen的奇异值分解方法。
 
-## 论文1
+
+
+上面的特征值分解，对矩阵有着较高的要求，它需要被分解的矩阵AA为实对称矩阵，但是现实中，我们所遇到的问题一般不是实对称矩阵。
+
+因此我们可以用奇异值分解，
+$$
+\bold A\bold V = \Sigma\bold U
+$$
+
+在目前的各种开源库中，特别是物理或几何领域，三维奇异值分解主要有四种方法。但是先介绍二维奇异值分解
+
+# 二维奇异值分解
+
+```
+import numpy as np
+
+def G2(c,s):
+    return np.array([[c,s],[-s,c]])
+
+def PolarDecompostion(A):
+    R = np.zeros((2,2))
+    S = np.zeros((2,2))
+    x = A[0,0] + A[1,1]
+    y = A[1,0] - A[0,1]
+    d = np.sqrt(x*x + y*y)
+    R = G2(1,0)
+    if abs(d) > 1e-10:
+        d = 1 / d
+        R = G2(x*d,-y*d)
+    S = np.dot(R.T,A)
+    return R,S
+
+def SVD2x2(A):
+    U = np.zeros((2,2))
+    D = np.zeros((2))
+    V = np.zeros((2,2))
+    R,S = PolarDecompostion(A)
+    c = 1
+    s = 0
+    if abs(S[0,1]) < 1e-10:
+        D[0] = S[0,0]
+        D[1] = S[1,1]
+    else:
+        taw = 0.5 * (S[0,0] - S[1,1])
+        w = np.sqrt(taw * taw + S[0,1]*S[0,1])
+        if taw > 0:
+            t = S[0,1] / (taw + w)
+        else:
+            t = S[0,1] / (taw - w)
+        c = 1.0 / np.sqrt(t * t + 1)
+        s = - t * c
+        D[0] = c*c*S[0,0] - 2*c*s*S[0,1] + s*s*S[1,1]
+        D[1] = s*s*S[0,0] + 2*c*s*S[0,1] + c*c*S[1,1]
+    if D[0] < D[1]:
+        temp = D[0]
+        D[0] = D[1]
+        D[1] = temp
+        V = G2(-s,c)
+    else:
+        V = G2(c,s)
+    U = np.dot(R,V)
+    return U,D,V
+
+A = np.array([[3.0,2.0],[1.0,4.0]])
+u0,s0,vt0 = SVD2x2(A)
+u1,s1,vt1 = np.linalg.svd(A)
+```
+
+
+
+# 方法一：先求特征值再求奇异值
+
+先回忆一下特征值分解是怎么回事
+$$
+\bold A \bold x = \lambda \bold x
+$$
+其中A 是任意矩阵，x是特征向量，lambda是特征值。稍微变化一下
+$$
+\bold A = \bold x \lambda \bold x^{-1}
+$$
+因此对于svd分解来说，我们可以做如下变化
+$$
+\bold A^T \bold A = (\bold U \Sigma \bold V^T)^T \bold U \bold \Sigma \bold V \\
+= \bold V \Sigma \bold U^T \bold U \Sigma \bold V^T \\
+= \bold V \Sigma^2 \bold V^T
+$$
+注意矩阵V 是旋转矩阵的一部分，是正交矩阵，它的转置等于逆。那么也就说，Vt 就是通过求特征向量即可得到，而sigma 则是特征值的sqrt。求特征值常用的方法是QR分解迭代，而QR分解常用的方法是householder变换。我们一步一步来。
+
+## 使用householder变换
+
+在攻打主线之前，先考虑一个简单的支线例子，假设我们有一个向量
+$$
+\bold x = \begin{bmatrix}3 \\ 2 \end{bmatrix}
+$$
+我们希望将它旋转到横着的第一根坐标轴上，也就是我们希望最后的结果是
+$$
+\bold H \bold x = -\begin{bmatrix}3.6 \\ 0 \end{bmatrix}
+$$
+那么如何算出旋转矩阵 H 呢？我们可以借助几何镜面反射的规律
+
+![image-20220114121142965](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114121142965.png)
+
+
+
+如上图，黄色即是第一根根镜面反射轴，橙色虚线即是与镜面反射轴正交的第二根镜面反射轴。要算出旋转矩阵H ，我们只需要先把向量 x 投影到第一根黄色的镜面反射轴，然后再减去橙色虚线即可。
+
+为此我们先计算出黄色的第一根镜面反射轴。为此我们先算出向量 x 的长度，并且e1轴上产生这样一个向量，也就是上图的橙色实线。然后再让橙色实线与原来向量x 相加，得到第一根镜面反射轴
+$$
+\bold v = \bold x + ||\bold x||\bold e_1 = \begin{bmatrix} 3 \\ 2 \end{bmatrix} + 3.6 \begin{bmatrix}1 \\ 0 \end{bmatrix} = \begin{bmatrix}6.6 \\ 2 \end{bmatrix}
+$$
+然后运用投影定理，将向量x 投影到这第一根黄色镜面反射轴上
+$$
+\bold P_v= \frac{\bold v \bold v^{T}}{\bold v^T \bold v} = 
+\begin{bmatrix} 0.916 & 0.277 \\ 0.277 & 0.083\end{bmatrix}\qquad  \bold P_v \bold x = \frac{\bold v \bold v^{T}}{\bold v^T \bold v} \bold x = \begin{bmatrix}3.3 \\ 1 \end{bmatrix}
+$$
+这样一来Pvx 就和 向量 v 方向相同了，此时Pvx 也是下图蓝色虚线的一半。
+
+![image-20220114123602581](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114123602581.png)
+
+接下来再算橙色虚线，也就是第二个镜面反射轴。由于第二根镜面反射轴与第一根正交，因此只需要用单位矩阵减去第一根投影变换矩阵就可得第二个投影变换矩阵。第二根镜面反射轴的向量也很好计算。
+$$
+\bold P_{\perp \bold v} = \bold I - \bold P_{\bold v} = \begin{bmatrix} 0.084 & -0.277 \\ -0.277 & 0.916\end{bmatrix} \qquad \bold P_{\perp \bold v} \bold x = \begin{bmatrix}-0.302 \\ 1 \end{bmatrix}
+$$
+接下就可得到Hx 的表达式
+$$
+\bold H \bold x = \bold x - 2 \bold P_v \bold x = \bold P_{\perp \bold v} \bold x - \bold P_v \bold x
+$$
+或者换一种写法
+$$
+\bold H_{\bold v}   = \bold I - 2\frac{\bold v \bold v^{T}}{\bold v^T \bold v}=  \bold P_{\perp \bold v} - \bold P_{\bold v}
+$$
+至此，householder 变换完成。写成代码如下
+
+```
+import numpy as np
+def householder(a):
+    v = a.copy()
+    v[0] += np.linalg.norm(a)
+    H = np.eye(a.shape[0])
+    inner = np.dot(v, v)
+    outter = np.dot(v[:, None], v[None, :])
+    Pv = outter / inner
+    Pvx = np.dot(Pv,x)
+    Pv_ortho = np.eye(a.shape[0]) - Pv
+    Pvx_or = np.dot(Pv_ortho,x)
+    H -= (2 / inner) * outter
+    return H
+x = np.array([3,2],dtype = float)
+h = householder(x)
+hx = np.dot(h,x)
+```
+
+## 计算QR分解
+
+QR分解将矩阵A 分解为正交矩阵和上三角矩阵
+$$
+\bold A = \bold Q \bold R
+$$
+将矩阵全写出来更清楚一些
+$$
+\bold A = \begin{bmatrix} * & * & * \\ * & * & * \\ * & * & *\end{bmatrix}\qquad  \bold R = \begin{bmatrix} * & * & * \\ 0 & * & * \\ 0 & 0 & *\end{bmatrix}
+$$
+但是矩阵A 既不是上三角矩阵，也不是正三角矩阵，怎么办呢？我们可以使用一个比较的粗鲁的几何办法，既然R是n行n列的上三角矩阵，那么也就是矩阵R第m 列，从(m+1)到n行都为零。而Q矩阵又是个正交矩阵，或者说是旋转矩阵，那么我们要对A 矩阵的第m列做的，不过就是把把第m 列视作一个向量，然后将它投影到第一根轴
+$$
+\bold A = \begin{bmatrix} 17 & 19 & 16 \\ 19 & 51 & 19 \\ 16 & 19 & 17\end{bmatrix} \qquad A_0 = \begin{bmatrix} 17 \\ 19
+\\16 \end{bmatrix}
+$$
+例如对于上面的矩阵A，它的第一列向量是[17 19 16]^T，我们要想办法把算出一个旋转矩阵，把它投影到第一根轴上，并且保持长度不变。这就是householder 变换，上面已经介绍过了。把第一列投影到第一根轴上后，A 矩阵成了如下的样子
+$$
+\bold H _1\bold A = \begin{bmatrix} -30 & -53 & -30 \\ 0 & 21 & 0.41 \\ 0 & -5.46 & 1.35\end{bmatrix}
+$$
+接下来第二列怎么操作呢？很简单，我们直接忽略第一行和第一列的数字就行了，也就是我们只关注不是星号的数字
+$$
+\begin{bmatrix} * & * & * \\ * & 21 & 0.41 \\ * & -5.46 & 1.35\end{bmatrix} \qquad A_1 = \begin{bmatrix} 21 \\ -5.46\end{bmatrix}
+$$
+这样第一列又是A1了，接下来继续house holder 变换就完了。当进行到矩阵A的最后的第一列的时候，此时矩阵A 也变成了上三角矩阵R，而正交矩阵R 则由历次算出来的H 矩阵相乘得到
+$$
+\bold H_2 \bold H_1 \bold A = \bold R  \qquad \bold Q = \bold H_2 \bold H_1
+$$
+写成代码如下
+
+```
+def QRdecomposition(A):
+    m, n = A.shape
+    Q = np.eye(m)
+    for i in range(n - (m == n)):
+        H = np.eye(m)
+        H[i:, i:] = householder(A[i:, i])
+        Q = np.dot(Q, H)
+        A = np.dot(H, A)
+    return Q, A
+```
+
+## shift QR
+
+上面的迭代QR分解有个缺点，就是当矩阵 A 是单位矩阵时，算出来的特征值是错的。
+
+
+
+https://www.andreinc.net/2021/01/25/computing-eigenvalues-and-eigenvectors-using-qr-decomposition
+
+```
+def computeEigenValue(A):
+    A_new = A.copy()
+    R_old = np.zeros((3,3))
+    for i in range(500):
+        si = A_new[2,2] * np.eye(3)
+        Q,R = QRdecomposition(A_new - si)
+        term0 = R[0,0] + R[1,1] + R[2,2]
+        term1 = R_old[0,0] + R_old[1,1] + R_old[2,2]
+        R_old = R.copy()
+        if abs(term0 - term1)<1e-10:
+            break
+        A_new = np.dot(R,Q) + si
+    return A_new
+```
+
+=============D:\图形学书籍\图形学书籍\流体\Matrix Computations-Johns Hopkins University Press (2012).pdf
+
+The theorem says that if we shift by an exact eigenvalue, then in exact arithmetic
+deflation occurs in one step.  
+
+## 计算特征值
+
+我们可以QR分解迭代来计算特征值。对于第k 迭代来说，我们先将A 经过QR分解，
+$$
+\bold A_k = \bold Q _k \bold R_k
+$$
+那么下一次迭代的A 即为
+$$
+\bold A_{k+1} = \bold R_k \bold Q_k
+$$
+这是因为
+$$
+\bold A_{k+1} = \bold R_k \bold Q_k = \bold Q^T_k \bold Q_k \bold R_k \bold Q_k = \bold Q_k^T \bold A_k \bold Q_k = \bold Q_k^{-1}\bold A_k \bold Q_k
+$$
+也就是A{k+1}和A{k}是相似的，那么它们有相同的特征值。经过多次迭代后，A{k}会收敛到对角矩阵，而对角线上的元素就是特征值。
+
+```
+def computeEigenValue(A):
+    A_new = A.copy()
+    R_old = np.zeros((3,3))
+    for i in range(100):
+        Q,R = QRdecomposition(A_new)
+        term0 = R[0,0] + R[1,1] + R[2,2]
+        term1 = R_old[0,0] + R_old[1,1] + R_old[2,2]
+        R_old = R.copy()
+        if abs(term0 - term1)<1e-10:
+            break
+        A_new = np.dot(R,Q)
+    return R_old
+```
+
+特征值算出之后，要计算特征向量，对于3x3矩阵也是非常简单。特征值的sqrt 就是奇异值。而右奇异矩阵 Vt 就是特征向量组成的矩阵。剩下的左奇异矩阵U也能很快算出来。
+
+本方法的缺点是，当
+
+## 方法一的缺点
+
+当矩阵A 是奇异的时候，比如
+$$
+\bold A = \begin{bmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0\end{bmatrix}
+$$
+那么就会为零的特征值，此时无法正确计算出左奇异矩阵U，因为左奇异矩阵的计算代码如下
+
+```
+    svd_u[:,0] = np.dot(A,svd_v[0,:]) / sigma[0,0]
+    svd_u[:,1] = np.dot(A,svd_v[1,:]) / sigma[1,1]
+    svd_u[:,2] = np.dot(A,svd_v[2,:]) / sigma[2,2]
+```
+
+
+
+## vegafem库
+
+又是我们超级无敌酷炫的vegafem库，它是先计算矩阵A的特征值和特征向量，然后就能很快计算出奇异值。而特征值的计算用到了QL算法和householder分解。地址在https://github.com/starseeker/VegaFEM/blob/6252395422f96695e5403adaedd104040d7a7679/libraries/minivector/mat3d.cpp#L79。
+
+vegafem库还处理了当sigma太小的情况。详细请看代码。
+
+## irving04库
+
+先求特征值，再求奇异值，也是可逆有限元 G. Irving, J. Teran, and R. Fedkiw. Invertible Finite Elements for Robust Simulation of Large Deformation 所使用的算法。
+
+## pielet库
+
+pielet
+
+## IPC库
+
+# 方法二：Eigen
+
+Eigen 数学库所使用的方法
+
+著名的Eigen库的奇异值分解就实现了jacobian旋转方法，如果你觉得Eigen库太难读，可以看看我使用python实现了jacobian旋转，很方便调试。很多开源代码在需要奇异值分解的时候也会使用eigen的奇异值分解方法。这种方法适用于任何维度的矩阵，不过原理较为复杂。
+
+https://mathworld.wolfram.com/JacobiRotationMatrix.html
+
+![image-20220115112210132](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220115112210132.png)
+
+==================Adaptive Jacobi method for parallel singular value decompositions  
+
+![image-20220114203551422](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114203551422.png)
+
+
+
+```
+rotate_s = 0
+    rotate_c = 0
+    if abs(d) < considerAsZero:
+        rotate_s = 0
+        rotate_c = 1
+    else:
+        u = t / d
+        tmp = np.sqrt(1 + u*u)
+        rotate_s = 1 / tmp
+        rotate_c = u / tmp
+```
+
+![image-20220114205607464](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114205607464.png)
+
+
+
+```
+def makeJacobi(x,y,z):
+    deno = 2 * abs(y)
+    m_c = 1
+    m_s = 0
+    if deno > considerAsZero:
+        tau = (x - z) / deno
+        w = np.sqrt(tau * tau + 1)
+        t = 0
+        if tau > 0:
+            t = 1 / (tau + w)
+        else:
+            t = 1 / (tau - w)
+        n = 1 / np.sqrt(t*t + 1)
+        m_s = - np.sign(t) * y / abs(y) * abs(t) * n
+        m_c = n
+    return np.array([m_c,m_s])
+```
+
+![image-20220114203918923](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114203918923.png)
+
+====================D:\图形学书籍\svd\BLOCK-JACOB1SVD ALGORITHMS FOR.pdf
+
+Dynamic ordering for a parallel block-Jacobi SVD algorithm  
+
+![image-20220115095952916](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220115095952916.png)
+
+# 方法三
 
 Computing the Singular Value Decomposition of 3 x 3 matrices with minimal branching and elementary floating point operations
+
+## QR given 旋转
+
+经过householder 变换后，一个向量可以只剩下一个元素不为零，且这个元素就是向量的长度，而其它的元素都是零。 
+
+
+
+![image-20220114144822374](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114144822374.png)
+
+```
+import numpy as np
+
+EPSILON = 1e-10
+
+def QRGivens(a,b):
+    c = 1
+    s = 0
+    if b == 0:
+        return c,s
+    else:
+        if abs(b) > abs(a):
+            tau = - a / b
+            s = 1 / np.sqrt(1 + tau * tau)
+            c = s * tau
+        else:
+            tau = - b / a
+            c = 1 / np.sqrt(1 + tau * tau)
+            s = c * tau
+        return c,s
+            
+
+x = np.array([3.0,4.0])
+c,s = QRGivens(x[0], x[1])
+rot = np.array([[c,-s],[s,c]])
+y = np.dot(rot,x)
+```
+
+参考
+
+![image-20220114150930134](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114150930134.png)
+
+
+
+```
+_gamma = 5.828427124 # FOUR_GAMMAt_sQUARED = sqrt(8)+3;
+_cstar = 0.923879532 # cos(pi/8)
+_sstar = 0.3826834323 # sin(pi/8)
+EPSILON = 1e-6
+
+def ApproxGivens(a11,a12,a22):
+    ch = 2 * (a11 - a22)
+    sh = a12
+    w = 1.0 / np.sqrt(ch * ch + sh * sh)
+    if _gamma * sh * sh < ch * ch:
+        return w * ch, w * sh
+    else:
+        return _cstar,_sstar
+```
+
+
 
 这篇论文中的算法非常经典。
 
@@ -32,7 +441,17 @@ Descent Methods for Elastic Body Simulation on the GPU 也开源了，可见http
 
 另一个是个人开源的地址为https://github.com/benjones/quatSVD/blob/master/quatSVD.hpp
 
-## 论文2
+https://github.com/wi-re/tbtSVD
+
+# 方法四
+
+
+$$
+\bold A = \begin{bmatrix} 3 & 4 & 2 \\ 4 & 5 & 2 \\ 2 & 5 & 3\end{bmatrix}
+$$
+首先Bi
+
+
 
 Implicit-shifted Symmetric QR Singular Value Decomposition of 3 × 3 Matrices 
 
@@ -46,15 +465,66 @@ bullet3库也是如此https://github.com/romanpunia/tomahawk/blob/373f080ff8552d
 
 最后是使用unity计算着色器实现的https://github.com/vanish87/UnitySVDComputeShader
 
-## VegaFem
 
-接下来介绍vegafem库所使用的方法，它是先计算矩阵A的特征值和特征向量，然后就能很快计算出奇异值。而特征值的计算用到了QL算法和householder分解。地址在https://github.com/starseeker/VegaFEM/blob/6252395422f96695e5403adaedd104040d7a7679/libraries/minivector/mat3d.cpp#L79。
 
-vegafem库还处理了当sigma太小的情况。详细请看代码。这个算法也是04年论文可逆有限元 G. Irving, J. Teran, and R. Fedkiw. Invertible Finite Elements for Robust Simulation of Large Deformation 所使用的算法。
+## WILKINSON
 
-Numerical
 
-pielet
+
+https://dspace.mit.edu/bitstream/handle/1721.1/75282/18-335j-fall-2006/contents/lecture-notes/lec16.pdf
+
+
+
+
+
+![image-20220114163126816](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114163126816.png)
+
+```
+import numpy as np
+n = 3
+A = np.array([[3,1,2],[2,7,2],[2,1,3]])
+A = np.dot(A.T,A)
+
+def wilksonShiftQR(A, iterations=100):
+    Ak = np.copy(A)
+    n = Ak.shape[0]
+    QQ = np.eye(n)
+    for k in range(iterations):
+        b11 = A[n-2,n-2]
+        b22 = A[n-1,n-1]
+        b12 = A[n-2,n-1]
+        b21 = A[n-1,n-2]
+        delta = (b11 - b22) / 2
+        sign = 0
+        if abs(delta) < 1e-10:
+            sign = - 1
+        else:
+            sign = np.sign(delta)
+        shift = b22 - (sign*b21*b21) / (abs(delta) + np.sqrt(delta*delta + b21*b21))
+        smult = shift * np.eye(n)
+        Q, R = np.linalg.qr(Ak - smult)
+        Ak = np.dot(R,Q) + smult
+    return Ak
+
+eiv0 =  wilksonShiftQR(A)
+eiv1 = np.linalg.eig(A)[0]
+```
+
+## 主循环
+
+$$
+\bold B = \begin{bmatrix}\alpha_1 & \beta_1 & 0  \\ 0 & \alpha_2 & \beta_2 \\ 0 & 0 & \alpha_3 \end{bmatrix}
+$$
+
+那么
+$$
+\bold T = \bold B^T \bold B = \begin{bmatrix} \alpha_1^2 & \alpha_1 \beta_1 & 0 \\ \alpha_1 \beta_1 & \alpha_2^2 + \beta_1^2 & \alpha_2 \beta_2 \\ 0 & \alpha_2 \beta_2 & \alpha_3^2 + \beta_2^2 \end{bmatrix}
+$$
+
+
+# 特征值
+
+https://www.youtube.com/watch?v=mBcLRGuAFUk
 
 # 论文2简介
 
@@ -79,11 +549,13 @@ $$
 写成代码如下
 
 ```
-s11 = a*(a*t_s11 + b*t_s21) + b*(a*t_s21 + b*t_s22)
-s21 = a*(-b*t_s11 + a*t_s21) + b*(-b*t_s21 + a*t_s22)
-s22 = -b*(-b*t_s11 + a*t_s21) + a*(-b*t_s21 + a*t_s22)
-s31 = a*t_s31 + b*t_s32
-s33 = t_s33
+def jacobiConjugation():
+	...
+    s11 = a*(a*t_s11 + b*t_s21) + b*(a*t_s21 + b*t_s22)
+    s21 = a*(-b*t_s11 + a*t_s21) + b*(-b*t_s21 + a*t_s22)
+    s22 = -b*(-b*t_s11 + a*t_s21) + a*(-b*t_s21 + a*t_s22)
+    s31 = a*t_s31 + b*t_s32
+    s33 = t_s33
 ```
 
 然而上面的代码并不好调试，因此我重新用python写一版方便调试的代码，比较简单并且效率不高。首先仍然在计算奇异值之前计算特征值，特征值计算用QR迭代和householder分解。
@@ -479,3 +951,20 @@ IPC
     }
 ```
 
+# 参考
+
+
+
+
+
+对角元素相减
+
+![image-20220114184207880](E:\mycode\UnityPhysicsPlayground\SingularValueDecomposition\image-20220114184207880.png)
+
+=
+
+A proof of convergence for two parallel Jacobi SVD algorithms,  
+
+https://github.com/DiToMaVe/svd-jacobian
+
+https://mathworld.wolfram.com/JacobiRotationMatrix.html

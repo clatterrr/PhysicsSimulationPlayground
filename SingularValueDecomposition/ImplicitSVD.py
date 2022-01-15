@@ -206,7 +206,7 @@ def SolveReducedTopLeft(B,U,V):
     top_left = B[0:2,0:2]
     U2,D2,V2 = SVD2x2(top_left)
     u3 = G3_12_Direct(U2[0,0], U2[0,1])
-    v3 = G3_12_Direct(U2[0,0], U2[0,1])
+    v3 = G3_12_Direct(V2[0,0], V2[0,1])
     U = np.dot(U,u3)
     V = np.dot(V,v3)
     sigma = np.array([D2[0],D2[1],s3])
@@ -217,7 +217,7 @@ def SolveReducedBotRight(B,U,V):
     botRight = B[1:3,1:3]
     U2,D2,V2 = SVD2x2(botRight)
     u3 = G3_23_Direct(U2[0,0], U2[0,1])
-    v3 = G3_23_Direct(U2[0,0], U2[0,1])
+    v3 = G3_23_Direct(V2[0,0], V2[0,1])
     U = np.dot(U,u3)
     V = np.dot(V,v3)
     sigma = np.array([s1,D2[0],D2[1]])
@@ -281,7 +281,7 @@ def SVD3x3(A):
         G = G3_12(alpha1 * alpha1 - mu,gamma1)
         B = np.dot(B,G)
         V = np.dot(V,G)
-        U,B,V = Bidiag(U, B, V)
+        U,B,V = ZeroChasing(U, B, V)
         alpha1,alpha2,alpha3 = B[0,0],B[1,1],B[2,2]
         beta1,beta2 = B[0,1],B[1,2]
         gamma1,gamma2 = alpha1 * beta1, alpha2 * beta2
