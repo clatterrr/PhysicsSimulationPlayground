@@ -15,6 +15,8 @@ def ApproxGivens(a11,a12,a22):
         return w * ch, w * sh
     else:
         return _cstar,_sstar
+    
+wc,ws = ApproxGivens(2, 0.5, 1)
 
 def QRGivens(a1,a2):
     rho = np.sqrt(a1 * a1 + a2 * a2)
@@ -169,6 +171,8 @@ def QRdecomp(B):
     r31 = b31
     r32 = b32
     r33 = b33
+    
+    R = np.array([[r11,r12,r13],[r21,r22,r23],[r31,r32,r33]])
 
     ch2,sh2 = QRGivens(r11,r31)
     a = 1 - 2 * sh2 * sh2
@@ -183,6 +187,8 @@ def QRdecomp(B):
     b32 = -b * r12 + a * r32
     b33 = -b * r13 + a * r33
     
+    B = np.array([[b11,b12,b13],[b21,b22,b23],[b31,b32,b33]])
+    
     ch3,sh3 = QRGivens(b22,b32)
     a = 1 - 2 * sh3 * sh3
     b = 2 * ch3 * sh3
@@ -195,6 +201,8 @@ def QRdecomp(B):
     r31 = -b * b21 + a * b31
     r32 = -b * b22 + a * b32
     r33 = -b * b23 + a * b33
+    
+    R = np.array([[r11,r12,r13],[r21,r22,r23],[r31,r32,r33]])
     
     sh12 = sh1 * sh1
     sh22 = sh2 * sh2
@@ -211,7 +219,6 @@ def QRdecomp(B):
     q32 = 2 * ch3 * (1 - 2 * sh22) * sh3
     q33 = (-1 + 2 * sh22) * (-1 + 2 * sh32)
     
-    R = np.array([[r11,r12,r13],[r21,r22,r23],[r31,r32,r33]])
     Q = np.array([[q11,q12,q13],[q21,q22,q23],[q31,q32,q33]])
     return Q,R
     

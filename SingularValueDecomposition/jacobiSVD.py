@@ -3,7 +3,8 @@ import numpy as np
 # 算法来源于Eigen的JacobiSVD，注释也一样，完成，数据一样，但是sigma哪里去了？
 N = 3
 
-A = np.array([[1,2,3],[4,5,6],[7,8,10]],dtype = float)
+
+A = np.array([[1,0,0],[0,0,0],[0,0,0]],dtype = float)
 
 finished = False
 considerAsZero = 1.17549435e-38
@@ -72,6 +73,9 @@ def real_2x2_jacobi_svd(matrix,p,q):
     j_left[0] = rotate_c * j_right[0] + rotate_s * j_right[1]
     j_left[1] = rotate_s * j_right[0] - rotate_c * j_right[1]
     return j_left,j_right
+
+Cm = np.array([[1.0,2.0],[3.0,4.0]])
+real_2x2_jacobi_svd(Cm, 0, 1)
 
 # step 2. The main Jacobi SVD iteration.
 while(finished == False):

@@ -1,7 +1,10 @@
 import numpy as np
 import math
-A = np.array([[1.0,2.0],[3.0,4.0]])
 
+cA = np.cos(-45.0 / 180.0 * np.pi)
+sA = np.sin(-45.0 / 180.0 * np.pi)
+A = np.array([[cA,-sA],[sA,cA]])
+A = np.array([[1,0.1],[0.1,1]])
 Su = A @ A.T
 
 phi = 0.5 * math.atan2(Su[0,1]+Su[1,0], Su[0,0] - Su[1,1])
@@ -24,5 +27,5 @@ S = U.T @ A @ W
 C = np.array([[np.sign(S[0,0]),0],
               [0,np.sign(S[1,1])]])
 V = W @ C
-
+Ao = U @ svals @ V
 u0,s0,v0 = np.linalg.svd(A)

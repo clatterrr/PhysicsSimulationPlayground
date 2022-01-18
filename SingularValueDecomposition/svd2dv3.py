@@ -21,7 +21,6 @@ def SVD2x2(A):
     D = np.zeros((2))
     V = np.zeros((2,2))
     R,S = PolarDecompostion(A)
-    S = A.copy()
     c = 1
     s = 0
     if abs(S[0,1]) < 1e-10:
@@ -50,7 +49,8 @@ def SVD2x2(A):
 
 cA = np.cos(-30.0 / 180.0 * np.pi)
 sA = np.sin(-30.0 / 180.0 * np.pi)
-A = np.array([[1,2],[3,4.0]])
+A = np.array([[2,0.5],[0.5,1]])
+A = np.array([[1,3],[3,4.0]])
 eiv,eigvv = np.linalg.eig(A)
 AtA = np.dot(A.T,A)
 u0,s0,vt0 = SVD2x2(A)

@@ -289,6 +289,6 @@ def SVD3x3(A):
     return PostProcess(B, U, V, alpha1, alpha2, alpha3, beta1, beta2, gamma1, gamma2, tao)
         
         
-A = np.array([[3,4,2],[4,5,2],[2,5,3]])
+A = np.array([[1,0,0],[0,0,0],[0,0,0]],dtype = float)
 U0,D0,V0 = SVD3x3(A)
 U1,D1,V1 = np.linalg.svd(A)
