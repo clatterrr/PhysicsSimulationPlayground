@@ -21,7 +21,6 @@ def SVD2x2(A):
     D = np.zeros((2))
     V = np.zeros((2,2))
     R,S = PolarDecompostion(A)
-    S = A.copy()
     c = 1
     s = 0
     if abs(S[0,1]) < 1e-10:
