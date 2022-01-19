@@ -1,6 +1,12 @@
 import numpy as np
+'''
+Copyright (C) 2022 胡虎护弧呼 - All Rights Reserved
+You may use, distribute and modify this code under the
+terms of the GPL license.
 
-# A is a square random matrix of size n
+shift qr decomposition
+tutorials : https://zhuanlan.zhihu.com/p/459369233
+'''
 n = 3
 A = np.array([[3,1,2],[2,7,2],[2,1,3]])
 A = np.dot(A.T,A)

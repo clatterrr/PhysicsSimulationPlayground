@@ -1,5 +1,13 @@
-import numpy as np
+'''
+Copyright (C) 2022 胡虎护弧呼 - All Rights Reserved
+You may use, distribute and modify this code under the
+terms of the GPL license.
 
+implementation of "Computing the Singular Value Decomposition of 3 x 3 
+                   matrices with minimal branching and elementary floating point operations"
+tutorials : https://zhuanlan.zhihu.com/p/459369233
+'''
+import numpy as np
 
 _gamma = 5.828427124 # FOUR_GAMMAt_sQUARED = sqrt(8)+3;
 _cstar = 0.923879532 # cos(pi/8)

@@ -1,10 +1,16 @@
+'''
+Copyright (C) 2022 胡虎护弧呼 - All Rights Reserved
+You may use, distribute and modify this code under the
+terms of the GPL license.
+
+jacobi rotation singular value decomposition 
+this algorithm is also used in Eigen library
+tutorials : https://zhuanlan.zhihu.com/p/459369233
+'''
 import numpy as np
 
-# 算法来源于Eigen的JacobiSVD，注释也一样，完成，数据一样，但是sigma哪里去了？
 N = 3
-
-
-A = np.array([[1,0,0],[0,0,0],[0,0,0]],dtype = float)
+A = np.array([[1,3,2],[4,1,5],[8,2,1]],dtype = float)
 
 finished = False
 considerAsZero = 1.17549435e-38
@@ -133,4 +139,9 @@ for i in range(N):
         U[:,maxpos] = tmp.copy()
         
         temp = 0
+        
+U0 = U
+S0 = singularValues
+Vt0 = V.T
+U1,S1,Vt1 = np.linalg.svd(A)
             

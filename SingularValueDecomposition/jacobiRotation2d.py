@@ -1,3 +1,11 @@
+'''
+Copyright (C) 2022 胡虎护弧呼 - All Rights Reserved
+You may use, distribute and modify this code under the
+terms of the GPL license.
+
+2x2 Givens Rotation compute Singular Value Decomposition
+tutorials : https://zhuanlan.zhihu.com/p/459369233
+'''
 import numpy as np
 
 A = np.array([[1,2],[0,1.0]],dtype = float)

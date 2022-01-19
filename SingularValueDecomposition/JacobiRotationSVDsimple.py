@@ -1,5 +1,12 @@
-import numpy as np
+'''
+Copyright (C) 2022 胡虎护弧呼 - All Rights Reserved
+You may use, distribute and modify this code under the
+terms of the GPL license.
 
+3x3 Givens Rotation compute Singular Value Decomposition
+tutorials : https://zhuanlan.zhihu.com/p/459369233
+'''
+import numpy as np
 A = np.array([[1,0,0],[0,1,0],[0,0,1]],dtype = float)
 AtA = A.T @ A
 AtA0 = AtA.copy()

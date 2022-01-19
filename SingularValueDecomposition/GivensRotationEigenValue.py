@@ -1,3 +1,11 @@
+'''
+Copyright (C) 2022 胡虎护弧呼 - All Rights Reserved
+You may use, distribute and modify this code under the
+terms of the GPL license.
+
+3x3 singular value decomposition using givens rotation
+tutorials : https://zhuanlan.zhihu.com/p/459369233
+'''
 import numpy as np
 
 A = np.array([[1,2,3],[4,5,3],[7,8,10]],dtype = float)

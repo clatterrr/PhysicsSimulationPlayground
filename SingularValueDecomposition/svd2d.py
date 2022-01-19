@@ -1,5 +1,12 @@
 import numpy as np
+'''
+Copyright (C) 2022 胡虎护弧呼 - All Rights Reserved
+You may use, distribute and modify this code under the
+terms of the GPL license.
 
+simple 2x2 singular value decomposition
+tutorials : https://zhuanlan.zhihu.com/p/459369233
+'''
 def G2(c,s):
     return np.array([[c,s],[-s,c]])
 

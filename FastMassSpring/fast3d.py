@@ -1,7 +1,7 @@
 '''
 Copyright (C) 2021 胡虎护弧呼 - All Rights Reserved
 You may use, distribute and modify this code under the
-terms of the MIT license.
+terms of the GPL license.
 
 fast implicit mass spring 3d example
 tutorials : https://zhuanlan.zhihu.com/p/450792199
